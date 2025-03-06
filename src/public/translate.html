@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Translation Tool</title>
+  <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-xl shadow-lg">
+    <h1 class="text-2xl font-bold text-center text-primary mb-6">Translation Tool</h1>
+    
+    <div class="flex space-x-4 justify-center mb-4">
+      <!-- <a href="/page1" class="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-indigo-500 transition duration-200 text-center">Page 1</a>
+      <a href="/page2" class="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-indigo-500 transition duration-200 text-center">Page 2</a> -->
+    </div>
+    <form hx-post="/translate" hx-target="#response" hx-swap="innerHTML" class="space-y-4">
+      <div class="flex flex-col">
+        <input type="text" name="message" placeholder="Word to translate" 
+               class="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+      </div>
+      <button type="submit" 
+              class="w-full py-2 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-indigo-500 transition duration-200">
+        Translate
+      </button>
+    </form>
+
+    <div id="response" class="mt-6 p-4 bg-gray-700 rounded-lg min-h-16"></div>
+  </div>
+</body>
+
+</html>
