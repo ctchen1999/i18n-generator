@@ -7,9 +7,11 @@ interface TranslationResult {
     };
 }
 
+type Billing = number
+
 export class Translator {
     private openai: OpenAI;
-    private targetLanguages = ['English', 'zh-TW', 'Japanese', 'Korean', 'Vietnamese', 'Thai'];
+    private targetLanguages = ['zh-TW', 'Japanese', 'Korean', 'Vietnamese', 'Thai'];
 
     constructor(apiKey: string) {
         this.openai = new OpenAI({
@@ -17,22 +19,16 @@ export class Translator {
         });
     }
 
-    async translateText(text: string | Record<string, string>): Promise<TranslationResult> {
+    async translateText(text: string): Promise<TranslationResult> {
         const result: TranslationResult = {};
-
-        if (typeof text === 'string') {
-            result[text] = await this.translateSingle(text);
-        } else {
-            for (const [key, value] of Object.entries(text)) {
-                result[key] = await this.translateSingle(value);
-            }
-        }
+        result[text] = await this.translateSingle(text);
 
         return result;
     }
 
     private async translateSingle(text: string): Promise<{ [language: string]: string }> {
         const translations: { [language: string]: string } = {};
+        let bill: Billing = 0;
 
         for (const targetLang of this.targetLanguages) {
             try {
@@ -41,7 +37,7 @@ export class Translator {
                     messages: [
                         {
                             role: 'system',
-                            content: `You are a professional translator. Translate the following Chinese text to ${targetLang}. Only respond with the translation, nothing else.`,
+                            content: `You are a professional translator. Translate the following mandarin text to ${targetLang}. Only respond with the translation without symbol, nothing else.`,
                         },
                         {
                             role: 'user',
@@ -50,15 +46,60 @@ export class Translator {
                     ],
                 });
 
-                const translation = response.choices[0]?.message?.content?.trim() || '';
+                const translation = response.choices[0].message?.content?.trim() || '';
+                bill += await this.translateBilling(response);
                 translations[targetLang.toLowerCase()] = translation;
             } catch (error) {
                 console.error(`Error translating to ${targetLang}:`, error);
                 translations[targetLang.toLowerCase()] = `Error translating to ${targetLang}`;
             }
         }
+        console.log("Cost (TWD): ", bill.toFixed(3));
 
         return translations;
+    }
+
+    async translateBilling(response: OpenAI.Chat.Completions.ChatCompletion): Promise<number> {
+        const modelName = response.model;
+        const promptTokens = response.usage?.prompt_tokens || 0;
+        const completionTokens = response.usage?.completion_tokens || 0;
+
+        // Pricing per 1000 tokens (in USD)
+        let promptPrice = 0;
+        let completionPrice = 0;
+
+        if (modelName.includes('gpt-3.5-turbo')) {
+            promptPrice = 0.0015;
+            completionPrice = 0.002;
+        } 
+
+        // Calculate total cost in USD
+        const costUSD = (promptTokens * promptPrice / 1000) + (completionTokens * completionPrice / 1000);
+        
+        const costTWD = await this.convertUSDtoTWD(costUSD);
+        
+        return costTWD;
+    }
+
+    private async convertUSDtoTWD(amountUSD: number): Promise<number> {
+        try {
+            // Using ExchangeRate-API to get the conversion rate
+            const response = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await response.json();
+            
+            if (!data.rates || !data.rates.TWD) {
+                console.error('Could not fetch TWD exchange rate, using approximate rate of 30');
+                return amountUSD * 30;
+            }
+            
+            const usdToTwdRate = data.rates.TWD;
+            return amountUSD * usdToTwdRate;
+        } catch (error) {
+            console.error('Error fetching exchange rate:', error);
+            // Fallback to approximate rate if API call fails
+            console.log('Using approximate exchange rate of 30 TWD per USD');
+            return amountUSD * 30;
+        }
     }
 
     async translateJsonFile(inputPath: string, outputPath: string): Promise<void> {
